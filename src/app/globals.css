@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand palette — drawn from the HeartLink mark (navy/black facets, electric blue, cyan-blue rim light) */
+  --hl-void: #070b14;        /* near-black navy, deepest surface */
+  --hl-ink: #0c1220;         /* body text on light surfaces */
+  --hl-navy-800: #0b1226;    /* dark surface */
+  --hl-navy-700: #101a34;    /* dark surface, raised */
+  --hl-blue-700: #0b3fde;    /* deep primary blue */
+  --hl-blue-500: #1e63ff;    /* primary interactive blue */
+  --hl-blue-400: #3c7bff;    /* hover / lighter blue */
+  --hl-cyan-300: #5ed0ff;    /* rim-light accent from the logo edges */
+  --hl-cyan-200: #9fe4ff;    /* subtle glow */
+  --hl-paper: #f5f8fd;       /* calm light background */
+  --hl-paper-dim: #e8eefb;   /* light surface, cards */
+  --hl-mist: #7c8aa8;        /* muted text / secondary */
+  --hl-line: #d9e2f3;        /* hairline borders on light */
+  --hl-line-dark: #22304f;   /* hairline borders on dark */
+  --hl-alert: #e8483a;       /* urgent action — chest pain */
+  --hl-alert-deep: #b9291f;  /* pressed / emphasis state */
+  --hl-ok: #1f9d6b;          /* calm / confirmed state */
+
+  --background: var(--hl-paper);
+  --foreground: var(--hl-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-hl-void: var(--hl-void);
+  --color-hl-ink: var(--hl-ink);
+  --color-hl-navy-800: var(--hl-navy-800);
+  --color-hl-navy-700: var(--hl-navy-700);
+  --color-hl-blue-700: var(--hl-blue-700);
+  --color-hl-blue-500: var(--hl-blue-500);
+  --color-hl-blue-400: var(--hl-blue-400);
+  --color-hl-cyan-300: var(--hl-cyan-300);
+  --color-hl-cyan-200: var(--hl-cyan-200);
+  --color-hl-paper: var(--hl-paper);
+  --color-hl-paper-dim: var(--hl-paper-dim);
+  --color-hl-mist: var(--hl-mist);
+  --color-hl-line: var(--hl-line);
+  --color-hl-line-dark: var(--hl-line-dark);
+  --color-hl-alert: var(--hl-alert);
+  --color-hl-alert-deep: var(--hl-alert-deep);
+  --color-hl-ok: var(--hl-ok);
+  --font-display: "Manrope", system-ui, sans-serif;
+  --font-body: "Source Sans 3", system-ui, sans-serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), system-ui, sans-serif;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--hl-blue-500);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
