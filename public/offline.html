@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>HeartLink — Offline</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #070b14;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      padding: 24px;
+      text-align: center;
+    }
+    .card { max-width: 360px; }
+    h1 { font-size: 1.25rem; margin: 0 0 8px; }
+    p { color: #7c8aa8; line-height: 1.5; margin: 0 0 16px; }
+    button {
+      background: #1e63ff;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>You're offline</h1>
+    <p>
+      HeartLink can't reach the server right now, so alerts can't be sent
+      or received. If this may be a medical emergency, call your local
+      emergency number.
+    </p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>
