@@ -1,123 +1,115 @@
 # HeartLink Development Progress
 
 ## Overall Status
-Phase: 3 — Emergency Alert (built; blocked on live migration, not on code)
-Progress: 45%
+Phase: 10 — all phases built. Migrations 0001–0004 are live; 0005–0008
+are written and verified but not yet applied.
+Progress: 95% built, ~45% live-confirmed.
 
-## Completed
+**Read this line first:** "all phases built" is a claim about code that
+compiles, type-checks, lints clean, and passes its automated tests. It is
+NOT a claim that Phases 5–10 work against your real database — they
+haven't been run there yet. That distinction is the whole point of
+tracking these separately; collapsing it back into one "done" would
+undo the reason this file exists.
+
+## Completed and LIVE-VERIFIED
 - [x] Phase 0 — Foundation
 - [x] Phase 1 — Authentication
-- [x] Phase 2 — Couple Pairing (code complete; see Blocked)
+- [x] Phase 2 — Couple Pairing
+- [x] Phase 3 — Emergency Alert
+(all confirmed working against the real Supabase project)
 
-## In Progress
-- [ ] Phase 3 — Emergency Alert (code complete, build/lint verified,
-      **not yet run against a live database**)
-  - [x] `pain_episodes` + `emergency_alerts` migration
-        (`supabase/migrations/0003_alerts.sql`), state machine enforced
-        entirely in `security definer` functions
-        (`create_alert`, `open_alert`, `acknowledge_alert`,
-        `cancel_alert`, `mark_alert_sent`)
-  - [x] Primary "How are you feeling?" screen on `/app` — only shown once
-        paired; shows the live alert instead if one is already open
-  - [x] "I'm having pain" — two-step confirm (hard to trigger by
-        accident), creates a real episode + alert, redirects to the alert
-  - [x] "I'm okay" — intentionally NOT persisted; there's no table for it
-        in the spec and inventing one would be exactly the kind of scope
-        creep the "no mock data" rule warns against, so it's a pure UI
-        acknowledgement
-  - [x] Alert detail page: real status, real timestamps, role-aware
-        actions (recipient acknowledges, sender cancels)
-  - [x] Alert history list, empty state when there are none
-  - [x] Copy is honest about the current limitation: while status is
-        `CREATED`, the sender sees "push notifications aren't built yet —
-        they'll see this next time they open the app" rather than any
-        claim that the partner has been notified (per the project's own
-        rule against false "your partner has been notified" messaging)
-  - [ ] Live end-to-end test — blocked, see below
+## Completed, fixed after review, NOT yet re-verified live
+- [x] Phase 4 — Push Notifications. Built outside this chat, then
+      reviewed here. Fixed: a committed VAPID private key (security —
+      rotate it in the actual deployment, this is still outstanding),
+      `mark_alert_sent()` never being called (alerts stuck at CREATED
+      forever regardless of real outcome), a broken/unrunnable test.
+      The original send/receive flow was tested live before these
+      fixes; the corrected status-tracking logic hasn't been.
 
-## Todo
-- [ ] Phase 4 — Push notifications (this is what turns `CREATED` alerts
-      into real-time ones; `mark_alert_sent()` is already there waiting
-      for it)
-- [ ] Phase 5 — Pain episode logging (full detail: symptoms, triggers,
-      duration, edit/delete — `pain_episodes` currently only has
-      severity + start time, set by Phase 3)
-- [ ] Phase 6 — Medication tracking
-- [ ] Phase 7 — Emergency contacts (beyond the single paired partner)
-- [ ] Phase 8 — Dashboard
-- [ ] Phase 9 — Safety (offline handling, failure-state copy audit)
-- [ ] Phase 10 — Testing
+## Built this session, NOT yet applied to the live database
+- [ ] Phase 5 — Pain episode logging (`0005_episode_logging.sql`)
+- [ ] Phase 6 — Medication tracking (`0006_medications.sql`)
+- [ ] Phase 7 — Emergency contacts (`0007_emergency_contacts.sql`)
+- [x] Phase 8 — Dashboard (no new migration)
+- [x] Phase 9 — Safety: disclaimer footer, offline banner, offline-aware
+      pain button, service-worker offline fallback page
+- [ ] Phase 10 — Testing (see below) — `audit_logs` +
+      duplicate-alert guard (`0008_hardening.sql`)
+
+## Phase 10 in detail
+- **Unit tests** (`npm test`, no live DB needed): 19 passing — tag
+  parsing, error-message humanization, alert status labels, notification
+  payload building.
+- **Integration/security tests** (`npm run test:integration`): a real
+  automated suite (`tests/integration/security.test.ts`) that creates
+  throwaway confirmed accounts via the admin API and exercises RLS with
+  real anon-key clients — not a service-role bypass. Covers: unpaired
+  users can't create alerts, third parties can't read
+  relationships/alerts/episodes they're not part of, only the actual
+  recipient can acknowledge an alert, duplicate `create_alert()` calls
+  return the same alert instead of creating a second one, cancel rejects
+  an already-acknowledged alert, invalid pairing codes fail clearly.
+  **Currently skips itself** (with the reason printed) because
+  `SUPABASE_SERVICE_ROLE_KEY` isn't set — this is real, runnable
+  coverage waiting on one env var, not vaporware.
+- **Manual test plan** (`docs/MANUAL_TEST_PLAN.md`): PWA installability,
+  iOS Safari specifics, mobile responsiveness, offline handling, push
+  delivery across two real devices — the things that genuinely need a
+  physical device/browser and can't be faked with a unit test.
+
+## A real gap this testing pass found and fixed
+`create_alert()` had no guard against duplicate or concurrent alerts —
+the project spec explicitly calls out "duplicate alert submission" and
+"multiple simultaneous alerts" as cases that must be handled, and this
+wasn't. `0008_hardening.sql` makes a second `create_alert()` call while
+one is already open return the *existing* alert instead of creating a
+duplicate. Covered by an integration test above. Not yet verified live.
+
+## Also added: audit_logs
+The original database design (`docs/DATABASE.md`) called for this from
+the start; it had been silently dropped along the way. `0008_hardening.sql`
+adds it and wires logging into pairing create/redeem/disconnect and
+alert create/acknowledge/cancel, via `CREATE OR REPLACE FUNCTION` on the
+existing security-definer functions (safe — same authorization logic,
+just also writes a log row). No UI was built for it; it's an
+accountability record, not a user-facing feature, per the original spec.
 
 ## Blocked
-- [ ] **Live migration + live test**, still. Have the real anon key,
-      `.env.local` is wired, builds cleanly against the real project
-      config — but this sandbox has no network route to `supabase.co`
-      (confirmed: `403 host_not_allowed`), so none of migrations
-      0001–0003 have been applied yet and nothing has been tested against
-      a real signup/pairing/alert. Steps to apply them are in
-      `supabase/APPLYING_MIGRATIONS.md`. **This is the actual next step
-      before Phase 3 can be called done, not just built.**
-- [ ] VAPID keypair for Web Push (needed for Phase 4).
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` (needed for Phase 4 — sending a real
-      push from server code after an alert is created).
+- [ ] Migrations `0005`–`0008` need to be applied — see
+      `supabase/APPLYING_MIGRATIONS.md`.
+- [ ] **VAPID key rotation in the actual deployment** — still
+      outstanding, still urgent, independent of migrations.
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` — needed for push delivery AND for
+      running `npm run test:integration`. One env var unlocks real
+      automated security testing; worth prioritizing for that alone.
 
 ## Known Bugs
-- None found — nothing has run against a live database yet.
-
-## Architecture Decisions
-- (see Phase 0–2 entries below, unchanged)
-- Alert state transitions are each their own `security definer` Postgres
-  function with a `where` clause scoped to the caller and the valid prior
-  states — e.g. only the recipient can acknowledge, only the sender can
-  cancel, and cancelling an already-acknowledged alert is rejected rather
-  than silently allowed.
-- `pain_episodes` is intentionally minimal in Phase 3 (severity + start
-  time only) — full logging detail is explicitly Phase 5's job, so it's
-  not built early just because it was easy to bolt on here.
-- The "I'm okay" action has no backing table by design (see above).
-
-### Earlier decisions (Phase 0–2)
-- Next.js App Router + TypeScript + Tailwind v4, Supabase (Postgres +
-  Auth), Vercel hosting, `@supabase/ssr` for browser/server/proxy clients.
-- Fonts self-hosted via `@fontsource`, not `next/font/google`.
-- Pairing codes: 6 char, single-use, 15 min expiry, redemption logic
-  entirely server-side; at most one active relationship per user enforced
-  by a database constraint, not just app logic.
-
-## Database Changes
-- `0001_profiles.sql`, `0002_pairing.sql`, `0003_alerts.sql` — all
-  written and reviewed together for consistency, none yet applied to the
-  live project. Apply in that order (see
-  `supabase/APPLYING_MIGRATIONS.md`).
-- `src/lib/supabase/types.ts` — hand-written row types extended to cover
-  `pain_episodes` / `emergency_alerts`; regenerate with the Supabase CLI
-  once the project is connected.
-
-## Security Changes
-- Every alert status transition is authorization-checked in the database
-  function itself (sender vs. recipient, valid prior states) — never
-  trusted from the client, and never just a client-side disabled button.
-- `emergency_alerts` / `pain_episodes` RLS: visible only to the
-  sender/recipient (alerts) or owner + the alert's recipient (episodes,
-  via a join) — a paired partner can't browse all of the other person's
-  episodes, only ones actually attached to an alert sent to them.
+- None currently open. (Two were found and fixed this session — see
+  Phase 4 entry above. Phases 5–10 haven't been live-tested at all, so
+  "none known" here means exactly that and no more.)
 
 ## Testing
-- `npm run build`, `npx tsc --noEmit`, `npx eslint .` all pass clean.
-- No live/integration testing yet. Planned test once unblocked: two
-  paired accounts, account A sends a pain alert, confirm account B sees
-  it in `/app` and can acknowledge, confirm A sees the acknowledgement,
-  then test cancel separately.
+- `npm test` — 19/19 passing, no live DB needed.
+- `npm run test:integration` — runnable once `SUPABASE_SERVICE_ROLE_KEY`
+  is set; currently self-skips with a clear reason.
+- `npm run build`, `npx tsc --noEmit`, `npx eslint .` — all clean.
+- `docs/MANUAL_TEST_PLAN.md` — device/browser checklist, not yet run.
 
 ## Next Task
-- Apply `0001` → `0002` → `0003` migrations (client/project owner
-  action — Claude's sandbox can't reach Supabase), then run the full
-  round trip: signup, pairing, send a pain alert, acknowledge it, cancel
-  one. Report back what breaks. Then: Phase 4 (push notifications), which
-  is what makes alerts actually real-time instead of "seen next time they
-  open the app."
+1. Rotate the VAPID key in the real deployment (independent, urgent).
+2. Apply migrations `0005`–`0008`.
+3. Set `SUPABASE_SERVICE_ROLE_KEY` and run `npm run test:integration` —
+   this is the single highest-value next step: it directly checks the
+   security boundaries that matter most for a two-person safety app,
+   automatically, against the real project.
+4. Run through `docs/MANUAL_TEST_PLAN.md` on real devices.
+5. Report back what breaks.
 
 ## Last Updated
-- 2026-08-31 — Phase 3 (Emergency Alert) built and build/lint-verified.
-  Still waiting on a live database to confirm any of Phases 1–3 actually
-  work end to end.
+- 2026-09-02 — All 10 spec phases now have code. Added a real
+  integration test suite, closed a duplicate-alert gap, added
+  `audit_logs`. Live-verified status unchanged for Phases 5–10 (i.e.
+  still not live-verified) — that's the accurate state, not a gap in
+  this update.
