@@ -47,6 +47,8 @@ export type PainEpisode = {
   started_at: string;
   ended_at: string | null;
   notes: string | null;
+  symptoms: string[];
+  possible_triggers: string[];
   created_at: string;
   updated_at: string;
 };
@@ -64,4 +66,34 @@ export type EmergencyAlert = {
   opened_at: string | null;
   acknowledged_at: string | null;
   cancelled_at: string | null;
+};
+
+export type Medication = {
+  id: string;
+  user_id: string;
+  name: string;
+  instructions: string | null;
+  dose: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EpisodeMedication = {
+  id: string;
+  episode_id: string;
+  medication_id: string;
+  taken_at: string;
+  created_at: string;
+};
+
+export type EmergencyContact = {
+  id: string;
+  user_id: string;
+  name: string;
+  phone: string | null;
+  relation: string | null;
+  escalation_order: number;
+  created_at: string;
+  updated_at: string;
 };

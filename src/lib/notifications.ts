@@ -3,7 +3,6 @@ import { createServiceClient } from "@/lib/supabase/server";
 import {
   buildNotificationPayload,
   getVapidConfig,
-  type NotificationPayload,
 } from "./notifications-core";
 
 export type { NotificationPayload } from "./notifications-core";

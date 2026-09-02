@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendAlertNotification } from "@/lib/notifications";
+import { humanizeAlertError } from "@/lib/errorMessages";
 import type { EmergencyAlert } from "@/lib/supabase/types";
 
 export type AlertActionState = {
@@ -20,15 +21,32 @@ export async function createAlert() {
 
   const alert = data as EmergencyAlert;
 
+  // Record the REAL outcome of the push attempt — never leave the alert
+  // silently stuck in CREATED, and never claim success that didn't
+  // happen. mark_alert_sent only fires a state change when VAPID is
+  // actually configured; if it isn't, the alert correctly stays
+  // CREATED and the UI already explains that honestly.
   try {
-    await sendAlertNotification({
+    const { sent } = await sendAlertNotification({
       recipientUserId: alert.recipient_id,
       alertId: alert.id,
       title: "HeartLink alert",
       body: "Your trusted contact reported chest pain.",
     });
+    await supabase.rpc("mark_alert_sent", {
+      alert_id: alert.id,
+      succeeded: sent > 0,
+    });
   } catch (pushError) {
-    console.warn("HeartLink: push notification delivery failed", pushError);
+    // getVapidConfig() throws when push isn't configured at all — that's
+    // not a delivery failure, just "not set up yet," so leave the alert
+    // at CREATED rather than marking it FAILED.
+    const notConfigured =
+      pushError instanceof Error && pushError.message.includes("VAPID keys are not configured");
+    if (!notConfigured) {
+      console.warn("HeartLink: push notification delivery failed", pushError);
+      await supabase.rpc("mark_alert_sent", { alert_id: alert.id, succeeded: false });
+    }
   }
 
   revalidatePath("/app");
@@ -117,14 +135,4 @@ export async function getActiveAlertForUser(): Promise<{
       severity: pain_episodes?.severity ?? null,
     },
   };
-}
-
-function humanizeAlertError(message: string): string {
-  const known = [
-    "No trusted contact connected",
-    "Alert not found or already resolved",
-    "Alert not found or already acknowledged",
-  ];
-  const match = known.find((m) => message.includes(m));
-  return match ?? "Something went wrong sending the alert. Please try again.";
 }

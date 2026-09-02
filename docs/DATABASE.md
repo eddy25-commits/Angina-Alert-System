@@ -1,68 +1,63 @@
-# HeartLink — Database Design (planned)
+# HeartLink — Database Design
 
-Status: **designed, not yet migrated**. No tables have been created in the
-Supabase project yet — this document is the plan those migrations will
-follow, written before implementation as required by the project spec.
+Status: **`0001`–`0004` applied to the live Supabase project.
+`0005`–`0007` written and reviewed, not yet applied** — see
+`supabase/APPLYING_MIGRATIONS.md`.
 
 All tables use `uuid` primary keys (`gen_random_uuid()`), `created_at` /
 `updated_at` timestamps, foreign keys with appropriate `on delete`
 behavior, and Row Level Security enabled with explicit policies (default
 deny). No table is readable or writable across a pairing boundary except
-where a policy explicitly allows it (e.g. a trusted contact reading an
-active alert).
+where a policy explicitly allows it.
 
 ## Tables
 
-- **profiles** — one row per `auth.users` id. Display name, avatar,
-  notification preferences. Row owned by the user; only the owner can
-  read/write their own row (paired partner reads a narrow public subset
-  via a view, not this table directly).
-- **relationships** — a confirmed pairing between two `profiles`. Stores
-  both user ids, status (`active` / `disconnected`), timestamps. Only the
-  two paired users can read it.
-- **pairing_codes** — short-lived, single-use codes a user generates to
-  invite their partner. Expiring, tied to the generating user, consumed
-  on redemption.
-- **emergency_contacts** — trusted contacts configured by a user (may be
-  the paired partner and/or others), with escalation order.
-- **push_subscriptions** — Web Push subscription objects per device, tied
-  to a user id. Never exposed to any user other than its owner.
-- **pain_episodes** — severity, start/end time, notes, symptoms, possible
-  triggers, owned by the reporting user. Readable by that user and, for
-  active/recent episodes tied to an alert, their paired contact.
-- **episode_symptoms** — normalized symptom tags linked to a
-  `pain_episodes` row.
-- **medications** — a user's own medications (name, instructions, dose,
-  as entered by the user from their existing prescription — never
-  generated or recommended by the app).
-- **episode_medications** — join table linking a medication-taken event
-  to a `pain_episodes` row.
-- **emergency_alerts** — the core alert record: episode reference,
-  sender, recipient(s), status (`CREATED` → `SENT` → `DELIVERED` →
-  `OPENED` → `ACKNOWLEDGED`, or `CANCELLED` / `EXPIRED` / `FAILED`), and
-  timestamps for each transition. Status changes are only ever written by
-  the server in response to a real event — never simulated.
-- **audit_logs** — append-only record of security-relevant events
-  (pairing created/broken, alert created/acknowledged, contact changed)
-  for accountability on a safety-critical app.
+- **profiles** (`0001`) — one row per `auth.users` id. Owned by the user.
+- **relationships** (`0002`) — a confirmed pairing between two profiles.
+  Only ever created by `redeem_pairing_code()`. At most one active
+  relationship per user, enforced by a partial unique index.
+- **pairing_codes** (`0002`) — short-lived (15 min), single-use codes.
+- **pain_episodes** (`0003`, extended `0005`) — severity, start/end time,
+  notes, plus `symptoms` / `possible_triggers` (`text[]` tags, not a
+  normalized join table — see Architecture Decisions in
+  `PROJECT_PROGRESS.md`). Owner has full CRUD (`0005`); a paired partner
+  can read one only if it's attached to an alert sent to them.
+- **emergency_alerts** (`0003`) — the core alert record. Status
+  (`CREATED → SENT/FAILED → ... → ACKNOWLEDGED`, or `CANCELLED`/
+  `EXPIRED`) only ever changes via `security definer` functions
+  (`create_alert`, `mark_alert_sent`, `open_alert`, `acknowledge_alert`,
+  `cancel_alert`) — never a direct client write.
+- **push_subscriptions** (`0004`) — Web Push subscriptions, one per
+  device. `is_active` soft-delete (set false on a failed/expired send)
+  rather than hard delete. Owner-only RLS.
+- **medications** (`0006`) — a user's own medications, entered by them
+  from their existing prescription. The app never generates or suggests
+  a name/dose/instructions.
+- **episode_medications** (`0006`) — join table recording that a
+  medication was taken during a specific episode. Same visibility as the
+  episode it's attached to (owner, or a partner who got an alert for it).
+- **emergency_contacts** (`0007`) — informational escalation contacts
+  (not the paired partner — that's `relationships`). Owner-only, except
+  visible to the alert recipient while an alert from that owner is
+  active. **Not pushed to** — HeartLink has no SMS/phone integration;
+  these are for the recipient's reference during a real event.
 
 ## Row Level Security approach
 
-- RLS is enabled on every table above from the first migration that
-  creates it — no table ships without policies.
-- Default posture is deny; policies are additive and scoped to
-  `auth.uid()` plus, where relevant, the counterpart id in an *active*
-  `relationships` row.
-- Writes to `emergency_alerts.status` are restricted to the
-  authenticated party allowed to make that specific transition (e.g.
-  only the recipient can move `OPENED` → `ACKNOWLEDGED`).
-- `SUPABASE_SERVICE_ROLE_KEY` is only ever used server-side (e.g. to send
-  a push notification after an alert is created) and is never sent to
-  the client.
+- RLS is enabled on every table from the migration that creates it — no
+  table ships without policies.
+- Default posture is deny; policies are additive, scoped to `auth.uid()`
+  plus, where relevant, the counterpart in an *active* relationship or
+  alert.
+- Cross-user state changes (pairing, alert status) happen only inside
+  `security definer` Postgres functions with their own authorization
+  checks — RLS alone doesn't gate those, the function logic does.
+- `SUPABASE_SERVICE_ROLE_KEY` is used server-side only, for push
+  delivery (`createServiceClient()` in `src/lib/supabase/server.ts`) —
+  never sent to the client.
 
-## Next step
+## Known deviation from the original plan
 
-Phase 1 (Authentication) starts by migrating `profiles` with its RLS
-policy and wiring it to `auth.users` via a trigger. That migration will
-be added, applied, and tested before Phase 1 is marked complete in
-`PROJECT_PROGRESS.md`.
+An earlier draft of this document called for an `audit_logs` table. It
+hasn't been built — flagging it here rather than silently dropping it,
+in case it matters more once real usage patterns are known.

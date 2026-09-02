@@ -117,8 +117,16 @@ export default async function AlertDetailPage({
 
       {isSender && alert.status === "CREATED" && (
         <p className="mt-4 text-xs leading-relaxed text-hl-mist">
-          Push notifications aren&apos;t built yet, so {counterpartName} will
-          see this the next time they open HeartLink — not immediately.
+          Push notifications aren&apos;t turned on for this account, so{" "}
+          {counterpartName} will see this the next time they open HeartLink
+          — not immediately.
+        </p>
+      )}
+
+      {isSender && alert.status === "FAILED" && (
+        <p className="mt-4 text-sm leading-relaxed text-hl-alert-deep">
+          The push notification couldn&apos;t be delivered. {counterpartName}{" "}
+          may not know yet — call them directly if you can.
         </p>
       )}
     </div>

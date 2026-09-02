@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import ProfileForm from "./ProfileForm";
+import NotificationSetup from "@/components/NotificationSetup";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -24,6 +25,9 @@ export default async function ProfilePage() {
       </h1>
       <p className="mt-2 text-sm text-hl-mist">{user!.email}</p>
       <ProfileForm initialDisplayName={profile?.display_name ?? ""} />
+      <div className="mt-8">
+        <NotificationSetup />
+      </div>
     </div>
   );
 }

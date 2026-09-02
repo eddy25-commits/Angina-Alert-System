@@ -37,9 +37,14 @@ export default async function AppHome() {
         <h1 className="font-display text-2xl font-semibold">
           {name ? `Hi, ${name}` : "You're signed in"}
         </h1>
-        <Link href="/app/alerts" className="text-sm font-medium text-hl-blue-700">
-          History
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/app/dashboard" className="text-sm font-medium text-hl-blue-700">
+            Dashboard
+          </Link>
+          <Link href="/app/alerts" className="text-sm font-medium text-hl-blue-700">
+            History
+          </Link>
+        </div>
       </div>
 
       {!relationship ? (
@@ -84,6 +89,15 @@ export default async function AppHome() {
       <div className="mt-8 flex justify-between text-sm">
         <Link href="/app/profile" className="font-medium text-hl-blue-700">
           Edit your profile
+        </Link>
+        <Link href="/app/episodes" className="font-medium text-hl-mist">
+          Episodes
+        </Link>
+        <Link href="/app/medications" className="font-medium text-hl-mist">
+          Medications
+        </Link>
+        <Link href="/app/contacts" className="font-medium text-hl-mist">
+          Contacts
         </Link>
         {relationship && (
           <Link href="/app/pair" className="font-medium text-hl-mist">

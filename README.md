@@ -12,11 +12,19 @@ guidance or emergency medical services.
 
 ## Status
 
-This repository currently contains **Phase 0 — Foundation** only: the
-Next.js/TypeScript/Tailwind app shell, PWA configuration (manifest,
-icons, service worker), and the Supabase client scaffolding. See
-[`PROJECT_PROGRESS.md`](./PROJECT_PROGRESS.md) for exactly what's done,
-what's next, and what's blocked.
+Phases 0–4 are live and have been exercised against the real Supabase
+project (auth, pairing, and the alert flow are confirmed working).
+Phases 5–9 (episode logging, medications, emergency contacts, dashboard,
+offline handling) are built and verified locally but not yet applied to
+the live database. See [`PROJECT_PROGRESS.md`](./PROJECT_PROGRESS.md) for
+exactly what's done, what's next, and what's blocked — including a VAPID
+key that needs rotating, see there for details.
+
+## Testing
+
+```bash
+npm test
+```
 
 ## Stack
 
